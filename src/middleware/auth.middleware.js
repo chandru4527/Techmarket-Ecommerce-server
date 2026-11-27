@@ -7,7 +7,7 @@ import Users from "../models/user.model.js";
 import AppError from "../utils/AppError.js";
 import asyncHandler from "../utils/asyncHandler.js";
 
-const ACCESS_TOKEN_SECRETKEY = process.env.ACCESS_TOKEN_SECRETKEY;
+const accessTokenKey = process.env.ACCESS_TOKEN_SECRETKEY;
 
 export const authMiddleware = asyncHandler(async (req, res, next) => {
     const token = req.cookies?.accessToken;
@@ -16,7 +16,7 @@ export const authMiddleware = asyncHandler(async (req, res, next) => {
         throw new AppError("Authentication required", 401);
     }
 
-    const decoded = jwt.verify(token, ACCESS_TOKEN_SECRETKEY);
+    const decoded = jwt.verify(token, accessTokenKey);
 
     const user = await Users.findById(decoded.id).select("-password");
 

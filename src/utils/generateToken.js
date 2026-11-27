@@ -6,14 +6,16 @@ const accessTokenExpireTime = process.env.ACCESS_TOKEN_EXPIRETIME;
 const refreshTokenKey = process.env.REFRESH_TOKEN_SECRETKEY;
 const refreshTokenExpireTime = process.env.REFRESH_TOKEN_EXPIRETIME;
 
-export const generateAccessToken = (userId, role) => {
+// access token
+export const generateAccessToken = (userId) => {
     return jwt.sign(
-        { id: userId, role },
+        { id: userId },
         accessTokenKey,
         { expiresIn: accessTokenExpireTime }
     );
 };
 
+// refresh token
 export const generateRefreshToken = (userId) => {
     return jwt.sign(
         { id: userId },

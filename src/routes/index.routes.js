@@ -3,7 +3,7 @@ import { Router } from "express";
 // Routes
 import authRoutes from "./auth.routes.js";
 // import adminRoutes from "./admin/admin.index.routes.js";
-// import userRoute from './user/user.routes.js';
+import userRoutes from './user.routes.js';
 // import mediaRoutes from "./media.routes.js";
 
 const router = Router();
@@ -23,7 +23,7 @@ router.use("/auth", authRoutes);
 // router.use("/admin", adminRoutes);
 
 // User routes
-// router.use("/user", userRoute)
+router.use("/user", userRoutes)
 
 // Media routes
 // router.use("/media", mediaRoutes);

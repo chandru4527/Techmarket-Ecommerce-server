@@ -12,6 +12,8 @@ import Users from "../models/user.model.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import AppError from "../utils/AppError.js";
 
+import { userRes } from "../utils/responses.js"
+
 import { generateAccessToken, generateRefreshToken, } from "../utils/generateToken.js";
 import { sendWelcomeEmail } from "../utils/sendEmail.js";
 
@@ -19,60 +21,37 @@ import { sendWelcomeEmail } from "../utils/sendEmail.js";
 const registerSchema = z.object({
     name: z.string().trim().min(3, "Name must be at least 3 characters"),
     email: z.string().trim().email("Invalid email address"),
-    password: z.string().min(8, "Password must be at least 8 characters"),
-    confirmPassword: z.string(),
+    password: z.string().min(6, "Password must be at least 6 characters"),
+    // confirmPassword: z.string(),
     termsAccepted: z.boolean().refine((value) => value === true, {
         message: "Please accept the terms and conditions",
     }),
-}).refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords do not match",
-    path: ["confirmPassword"],
-});
+})
 
 const loginSchema = z.object({
     email: z.string().trim().email("Invalid email address"),
-    password: z.string().min(8, "Password is required"),
+    password: z.string().min(6, "Password is required"),
 });
 
 // Configuration environment variables
-const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET;
+const refreshTokenKey = process.env.REFRESH_TOKEN_SECRETKEY;
 const isProduction = process.env.NODE_ENV === "production";
-const accessTokenExpireTime = process.env.ACCESS_TOKEN_EXPIRETIME;
-const refreshTokenExpireTime = process.env.REFRESH_TOKEN_EXPIRETIME;
 
 const accessCookieOptions = {
     httpOnly: true,
     secure: isProduction,
     sameSite: isProduction ? "none" : "lax",
     path: "/",
-    maxAge: parseInt(accessTokenExpireTime),
+    maxAge: 15 * 60 * 1000, // 15 minutes
 };
 
 const refreshCookieOptions = {
     httpOnly: true,
     secure: isProduction,
     sameSite: isProduction ? "none" : "lax",
-    path: "/v1/auth",
-    maxAge: parseInt(refreshTokenExpireTime),
+    path: "/",
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
 };
-
-// user response
-const userRes = (user) => ({
-    id: user?._id,
-    name: user?.name,
-    userName: user?.userName,
-    email: user?.email,
-    role: user?.role,
-    permissions: user?.permissions || [],
-    profileImage: user?.profileImage?.url || "",
-    isActive: user?.isActive,
-    createdAt: user?.createdAt,
-    updatedAt: user?.updatedAt,
-    mobile: user?.mobile,
-    address: user?.address,
-    lastLogin: user?.lastLogin || null,
-    uid: user?.uid || null,
-});
 
 // register controller
 export const register = asyncHandler(async (req, res) => {
@@ -118,13 +97,14 @@ export const register = asyncHandler(async (req, res) => {
     return res.status(201).json({
         success: true,
         message: "Register successfully!",
-        user: userRes(user),
+        result: userRes(user),
     });
 
 });
 
 // login controller
 export const login = asyncHandler(async (req, res) => {
+
     const validation = loginSchema.safeParse(req.body);
 
     if (!validation.success) {
@@ -167,7 +147,7 @@ export const login = asyncHandler(async (req, res) => {
     return res.status(200).json({
         success: true,
         message: "Login successful",
-        user: userRes(user),
+        result: userRes(user),
     });
 });
 
@@ -214,12 +194,13 @@ export const googleLogin = asyncHandler(async (req, res) => {
     return res.status(200).json({
         success: true,
         message: "Login successfully!",
-        user: userRes(user),
+        result: userRes(user),
     });
 });
 
 // get logged-in user controller
 export const getMe = asyncHandler(async (req, res) => {
+
     const user = await Users.findById(req?.user?.id).select("-password");
 
     if (!user) {
@@ -228,19 +209,20 @@ export const getMe = asyncHandler(async (req, res) => {
 
     return res.status(200).json({
         success: true,
-        user: userRes(user),
+        result: userRes(user),
     });
 });
 
 // refresh, access token controller
 export const refreshAccessToken = asyncHandler(async (req, res) => {
+
     const { refreshToken } = req.cookies;
 
     if (!refreshToken) {
         throw new AppError("Refresh token is required", 401);
     }
 
-    if (!REFRESH_TOKEN_SECRET) {
+    if (!refreshTokenKey) {
         return res.status(500).json({
             success: false,
             message: "Refresh token configuration is missing",
@@ -250,7 +232,7 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
     let decoded;
 
     try {
-        decoded = jwt.verify(refreshToken, REFRESH_TOKEN_SECRET);
+        decoded = jwt.verify(refreshToken, refreshTokenKey);
     } catch {
         return res.status(401).json({
             success: false,
@@ -260,7 +242,7 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
 
     const user = await Users.findById(decoded?.id);
 
-    if (!user || !user.isActive || user.isBlocked) {
+    if (!user || !user.isActive) {
         return res.status(401).json({
             success: false,
             message: "User not found or inactive. Please login again.",
@@ -269,6 +251,7 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
 
     const newAccessToken = generateAccessToken(user._id);
     const newRefreshToken = generateRefreshToken(user._id);
+
 
     res.cookie("accessToken", newAccessToken, {
         ...accessCookieOptions,
@@ -286,6 +269,7 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
 
 // logout controller
 export const logout = asyncHandler(async (req, res) => {
+
     res.clearCookie("accessToken", {
         httpOnly: true,
         secure: isProduction,
