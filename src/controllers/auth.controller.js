@@ -49,8 +49,8 @@ const refreshCookieOptions = {
     httpOnly: true,
     secure: isProduction,
     sameSite: isProduction ? "none" : "lax",
-    path: "/",
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    path: "/v1/auth",
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7days
 };
 
 // register controller
@@ -267,21 +267,23 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
     });
 });
 
-// logout controller
+// Logout controller
 export const logout = asyncHandler(async (req, res) => {
 
-    res.clearCookie("accessToken", {
+    const cookieOptions = {
         httpOnly: true,
         secure: isProduction,
         sameSite: isProduction ? "none" : "lax",
+    };
+
+    res.clearCookie("accessToken", {
+        ...cookieOptions,
         path: "/",
     });
 
     res.clearCookie("refreshToken", {
-        httpOnly: true,
-        secure: isProduction,
-        sameSite: isProduction ? "none" : "lax",
-        path: "/v1/auth/logout",
+        ...cookieOptions,
+        path: "/v1/auth",
     });
 
     return res.status(200).json({
